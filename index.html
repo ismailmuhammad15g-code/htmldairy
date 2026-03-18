@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <!--
+    Kindle Paperwhite viewport: ~600 px wide in the built-in browser.
+    We fix width=600 so the page fills the screen exactly.
+  -->
+  <meta name="viewport" content="width=600, initial-scale=1.0">
+  <title>مدونتي اليومية</title>
+  <style>
+    /* ── Reset ── */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    /* ── Base – Wikipedia-like black & white, no animations ── */
+    body {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 17px;
+      line-height: 1.65;
+      color: #000;
+      background: #fff;
+      width: 600px;
+      padding: 14px 18px 24px;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: bold;
+      border-bottom: 2px solid #000;
+      padding-bottom: 6px;
+      margin-bottom: 14px;
+    }
+
+    /* ── Links ── */
+    a {
+      color: #000;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    /* ── Buttons ── */
+    button {
+      background: #fff;
+      border: 1px solid #000;
+      padding: 5px 14px;
+      font-size: 15px;
+      font-family: inherit;
+      cursor: pointer;
+      line-height: 1.4;
+    }
+
+    button.primary {
+      background: #000;
+      color: #fff;
+    }
+
+    button.danger {
+      border-color: #000;
+    }
+
+    /* ── Inputs ── */
+    input[type="text"],
+    textarea {
+      width: 100%;
+      border: 1px solid #000;
+      padding: 7px 9px;
+      font-size: 16px;
+      font-family: inherit;
+      display: block;
+      background: #fff;
+      color: #000;
+    }
+
+    textarea {
+      height: 330px;
+      resize: vertical;
+    }
+
+    /* ── Status text (always plain text, never a toast) ── */
+    .status-msg {
+      display: block;
+      margin-top: 6px;
+      font-size: 14px;
+      min-height: 20px;
+      font-style: italic;
+    }
+
+    /* ── Pages ── */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ── Dividers ── */
+    hr {
+      border: none;
+      border-top: 1px solid #aaa;
+      margin: 12px 0;
+    }
+
+    /* ── Entry list ── */
+    #entries-container { margin-top: 4px; }
+
+    .entry-item {
+      border-bottom: 1px solid #ccc;
+      padding: 9px 0;
+    }
+
+    .entry-title-link {
+      font-weight: bold;
+      font-size: 16px;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .entry-meta {
+      display: block;
+      font-size: 12px;
+      color: #555;
+      margin-top: 2px;
+    }
+
+    .entry-preview {
+      font-size: 13px;
+      color: #333;
+      margin-top: 3px;
+    }
+
+    /* ── Form groups ── */
+    .form-group { margin-bottom: 12px; }
+
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    /* ── Button rows ── */
+    .btn-row { margin-top: 12px; }
+
+    /* RTL spacing: margin-left between buttons */
+    .btn-row button + button { margin-right: 8px; }
+
+    /* ── View page ── */
+    .view-heading {
+      font-size: 21px;
+      font-weight: bold;
+      margin: 12px 0 4px;
+      word-wrap: break-word;
+    }
+
+    .view-meta {
+      font-size: 12px;
+      color: #555;
+      margin-bottom: 10px;
+    }
+
+    .view-body {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-size: 16px;
+      line-height: 1.75;
+    }
+
+    /* ── Helpers ── */
+    .text-muted { color: #555; font-size: 14px; }
+
+    /* ── Confirm banner (inline, no dialog) ── */
+    #confirm-banner {
+      display: none;
+      border: 1px solid #000;
+      padding: 10px 12px;
+      margin-top: 12px;
+      font-size: 15px;
+    }
+
+    #confirm-banner button + button { margin-right: 10px; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     PAGE 1 – Entry List
+     ══════════════════════════════════════════════ -->
+<div id="page-list" class="page active">
+  <h1>مدونتي اليومية</h1>
+
+  <div class="btn-row">
+    <button class="primary" onclick="goNewEntry()">+ تدوينة جديدة</button>
+    <button onclick="loadEntries()">تحديث القائمة</button>
+  </div>
+
+  <span id="status-list" class="status-msg"></span>
+
+  <hr>
+
+  <div id="entries-container">
+    <p class="text-muted">جاري التحميل…</p>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     PAGE 2 – Editor (new / edit)
+     ══════════════════════════════════════════════ -->
+<div id="page-edit" class="page">
+  <div class="btn-row">
+    <button onclick="goList()">→ العودة للقائمة</button>
+  </div>
+
+  <hr>
+
+  <h1 id="edit-heading">تدوينة جديدة</h1>
+
+  <div class="form-group">
+    <label for="entry-title">العنوان</label>
+    <input type="text" id="entry-title" placeholder="عنوان التدوينة (اختياري)">
+  </div>
+
+  <div class="form-group">
+    <label for="entry-content">المحتوى</label>
+    <textarea id="entry-content" placeholder="اكتب تدوينتك هنا…"></textarea>
+  </div>
+
+  <!-- Status appears here as plain text, not a toast -->
+  <span id="status-edit" class="status-msg"></span>
+
+  <div class="btn-row">
+    <button class="primary" onclick="saveEntry()">حفظ</button>
+    <button id="btn-delete-edit" style="display:none;" onclick="showConfirm('edit')">حذف</button>
+  </div>
+
+  <!-- Inline confirm (no browser dialog – safer on Kindle) -->
+  <div id="confirm-banner">
+    <span>هل أنت متأكد من حذف هذه التدوينة؟</span>
+    <br><br>
+    <button class="primary" onclick="doDelete('edit')">نعم، احذف</button>
+    <button onclick="hideConfirm()">إلغاء</button>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     PAGE 3 – View single entry
+     ══════════════════════════════════════════════ -->
+<div id="page-view" class="page">
+  <div class="btn-row">
+    <button onclick="goList()">→ العودة للقائمة</button>
+    <button onclick="editCurrentEntry()">تعديل</button>
+  </div>
+
+  <div class="view-heading" id="view-title"></div>
+  <div class="view-meta"   id="view-meta"></div>
+
+  <hr>
+
+  <div class="view-body" id="view-body"></div>
+
+  <br>
+  <span id="status-view" class="status-msg"></span>
+
+  <div class="btn-row">
+    <button onclick="showConfirmView()">حذف هذه التدوينة</button>
+  </div>
+
+  <div id="confirm-banner-view" style="display:none; border:1px solid #000; padding:10px 12px; margin-top:12px; font-size:15px;">
+    <span>هل أنت متأكد من حذف هذه التدوينة؟</span>
+    <br><br>
+    <button class="primary" onclick="doDelete('view')">نعم، احذف</button>
+    <button onclick="document.getElementById('confirm-banner-view').style.display='none'">إلغاء</button>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     Script – all logic inline, no external deps
+     Uses Supabase REST API directly (no SDK)
+     to keep the page light for Kindle's processor
+     ══════════════════════════════════════════════ -->
+<script>
+"use strict";
+
+/* ── Supabase config ── */
+var SUPABASE_URL  = 'https://yvbwtjtoyiijayayggma.supabase.co';
+var SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2Ynd0anRveWlpamF5YXlnZ21hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NzM2OTgsImV4cCI6MjA4OTI0OTY5OH0.maix4wvLGRl62MxqqMOEP_BQGN64VrDXxVlo8E5X_IU';
+var TABLE         = 'diary_entries';
+var REST_BASE     = SUPABASE_URL + '/rest/v1/' + TABLE;
+
+/* ── HTTP helpers ── */
+var BASE_HEADERS = {
+  'apikey':        SUPABASE_KEY,
+  'Authorization': 'Bearer ' + SUPABASE_KEY,
+  'Content-Type':  'application/json'
+};
+
+function headers(extra) {
+  var h = {};
+  var k;
+  for (k in BASE_HEADERS) h[k] = BASE_HEADERS[k];
+  if (extra) for (k in extra) h[k] = extra[k];
+  return h;
+}
+
+/* Low-level fetch wrapper – all API calls happen on the server side */
+function apiFetch(url, opts) {
+  return fetch(url, opts).then(function (res) {
+    if (!res.ok) {
+      return res.text().then(function (t) {
+        throw new Error('HTTP ' + res.status + ': ' + t);
+      });
+    }
+    var ct = res.headers.get('content-type') || '';
+    if (ct.indexOf('json') !== -1) return res.json();
+    return null;
+  });
+}
+
+/* ── State ── */
+var currentId  = null;   /* id of the entry being viewed / edited */
+var cachedList = [];     /* local cache of the list page results  */
+
+/* ── Status helpers – plain text, never a toast ── */
+function setStatus(page, msg) {
+  var el = document.getElementById('status-' + page);
+  if (el) el.textContent = msg || '';
+}
+
+/* ── Date formatting ── */
+function fmtDate(iso) {
+  if (!iso) return '';
+  var d  = new Date(iso);
+  var yy = d.getFullYear();
+  var mm = String(d.getMonth() + 1).padStart(2, '0');
+  var dd = String(d.getDate()).padStart(2, '0');
+  var hh = String(d.getHours()).padStart(2, '0');
+  var mn = String(d.getMinutes()).padStart(2, '0');
+  return yy + '/' + mm + '/' + dd + ' – ' + hh + ':' + mn;
+}
+
+/* ── Escape HTML ── */
+function esc(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/* ── Page navigation ── */
+function showPage(id) {
+  var pages = document.querySelectorAll('.page');
+  for (var i = 0; i < pages.length; i++) {
+    pages[i].classList.remove('active');
+  }
+  document.getElementById(id).classList.add('active');
+  /* scroll to top – important on Kindle */
+  window.scrollTo(0, 0);
+}
+
+function goList() {
+  setStatus('list', '');
+  showPage('page-list');
+  loadEntries();
+}
+
+function goNewEntry() {
+  currentId = null;
+  document.getElementById('edit-heading').textContent  = 'تدوينة جديدة';
+  document.getElementById('entry-title').value         = '';
+  document.getElementById('entry-content').value       = '';
+  document.getElementById('btn-delete-edit').style.display = 'none';
+  hideConfirm();
+  setStatus('edit', '');
+  showPage('page-edit');
+}
+
+function editCurrentEntry() {
+  var entry = findCached(currentId);
+  if (!entry) { setStatus('view', 'لم يتم العثور على التدوينة'); return; }
+  document.getElementById('edit-heading').textContent       = 'تعديل التدوينة';
+  document.getElementById('entry-title').value              = entry.title   || '';
+  document.getElementById('entry-content').value            = entry.content || '';
+  document.getElementById('btn-delete-edit').style.display  = 'inline-block';
+  hideConfirm();
+  setStatus('edit', '');
+  showPage('page-edit');
+}
+
+/* ── Inline confirm (no browser dialog) ── */
+function showConfirm(ctx) {
+  if (ctx === 'edit') {
+    document.getElementById('confirm-banner').style.display = 'block';
+  }
+}
+
+function hideConfirm() {
+  document.getElementById('confirm-banner').style.display = 'none';
+}
+
+function showConfirmView() {
+  document.getElementById('confirm-banner-view').style.display = 'block';
+}
+
+/* ── Cache helpers ── */
+function findCached(id) {
+  for (var i = 0; i < cachedList.length; i++) {
+    if (cachedList[i].id === id) return cachedList[i];
+  }
+  return null;
+}
+
+function updateCache(entry) {
+  for (var i = 0; i < cachedList.length; i++) {
+    if (cachedList[i].id === entry.id) { cachedList[i] = entry; return; }
+  }
+  cachedList.unshift(entry);
+}
+
+function removeFromCache(id) {
+  cachedList = cachedList.filter(function (e) { return e.id !== id; });
+}
+
+/* ── Load entry list (server does the heavy work) ── */
+function loadEntries() {
+  setStatus('list', 'جاري التحميل…');
+  var container = document.getElementById('entries-container');
+  container.innerHTML = '<p class="text-muted">جاري التحميل…</p>';
+
+  var url = REST_BASE +
+    '?select=id,title,content,created_at' +
+    '&order=created_at.desc';
+
+  apiFetch(url, { method: 'GET', headers: BASE_HEADERS })
+    .then(function (data) {
+      cachedList = data || [];
+      setStatus('list', '');
+      renderList(cachedList);
+    })
+    .catch(function (err) {
+      setStatus('list', 'خطأ في التحميل: ' + err.message);
+      container.innerHTML = '';
+    });
+}
+
+function renderList(entries) {
+  var container = document.getElementById('entries-container');
+  if (!entries || entries.length === 0) {
+    container.innerHTML =
+      '<p class="text-muted">لا توجد تدوينات بعد. ابدأ بكتابة أولى تدويناتك!</p>';
+    return;
+  }
+
+  var html = '';
+  for (var i = 0; i < entries.length; i++) {
+    var e       = entries[i];
+    var preview = (e.content || '').substring(0, 90);
+    if ((e.content || '').length > 90) preview += '…';
+
+    html += '<div class="entry-item">';
+    html += '<span class="entry-title-link" data-entry-id="' + esc(e.id) + '">'
+          +   esc(e.title || 'بلا عنوان')
+          + '</span>';
+    html += '<span class="entry-meta">' + fmtDate(e.created_at) + '</span>';
+    if (preview) {
+      html += '<div class="entry-preview">' + esc(preview) + '</div>';
+    }
+    html += '</div>';
+  }
+  container.innerHTML = html;
+}
+
+/* ── View a single entry ── */
+function viewEntry(id) {
+  currentId = id;
+  setStatus('view', '');
+  document.getElementById('confirm-banner-view').style.display = 'none';
+
+  /* Show immediately from cache while the server responds */
+  var cached = findCached(id);
+  if (cached) {
+    renderView(cached);
+    showPage('page-view');
+  } else {
+    showPage('page-view');
+    setStatus('view', 'جاري التحميل…');
+  }
+
+  /* Always fetch full record from server to get latest content */
+  apiFetch(REST_BASE + '?id=eq.' + encodeURIComponent(id) + '&select=*',
+           { method: 'GET', headers: BASE_HEADERS })
+    .then(function (data) {
+      if (data && data.length > 0) {
+        updateCache(data[0]);
+        renderView(data[0]);
+        setStatus('view', '');
+      } else {
+        setStatus('view', 'لم يتم العثور على التدوينة');
+      }
+    })
+    .catch(function (err) {
+      setStatus('view', 'خطأ في التحميل: ' + err.message);
+    });
+}
+
+function renderView(entry) {
+  document.getElementById('view-title').textContent = entry.title || 'بلا عنوان';
+  var meta = 'كُتبت في: ' + fmtDate(entry.created_at);
+  if (entry.updated_at && entry.updated_at !== entry.created_at) {
+    meta += ' | عُدِّلت: ' + fmtDate(entry.updated_at);
+  }
+  document.getElementById('view-meta').textContent = meta;
+  document.getElementById('view-body').textContent = entry.content || '';
+}
+
+/* ── Save (insert or update) ── */
+function saveEntry() {
+  var title   = document.getElementById('entry-title').value.trim();
+  var content = document.getElementById('entry-content').value.trim();
+
+  if (!title && !content) {
+    setStatus('edit', 'يرجى كتابة عنوان أو محتوى قبل الحفظ');
+    return;
+  }
+
+  setStatus('edit', 'جاري الحفظ على السيرفر…');
+
+  var body = JSON.stringify({ title: title, content: content });
+
+  if (currentId) {
+    /* UPDATE – server handles updated_at via trigger */
+    apiFetch(REST_BASE + '?id=eq.' + encodeURIComponent(currentId), {
+      method:  'PATCH',
+      headers: headers({ 'Prefer': 'return=representation' }),
+      body:    body
+    })
+    .then(function (data) {
+      if (data && data.length > 0) updateCache(data[0]);
+      setStatus('edit', 'تم الحفظ بنجاح ✓');
+    })
+    .catch(function (err) {
+      setStatus('edit', 'خطأ في الحفظ: ' + err.message);
+    });
+
+  } else {
+    /* INSERT – server generates id, created_at, updated_at */
+    apiFetch(REST_BASE, {
+      method:  'POST',
+      headers: headers({ 'Prefer': 'return=representation' }),
+      body:    body
+    })
+    .then(function (data) {
+      if (data && data.length > 0) {
+        currentId = data[0].id;
+        updateCache(data[0]);
+        document.getElementById('edit-heading').textContent            = 'تعديل التدوينة';
+        document.getElementById('btn-delete-edit').style.display       = 'inline-block';
+      }
+      setStatus('edit', 'تم الحفظ بنجاح ✓');
+    })
+    .catch(function (err) {
+      setStatus('edit', 'خطأ في الحفظ: ' + err.message);
+    });
+  }
+}
+
+/* ── Delete ── */
+function doDelete(fromPage) {
+  if (!currentId) return;
+
+  if (fromPage === 'edit') {
+    hideConfirm();
+    setStatus('edit', 'جاري الحذف…');
+  } else {
+    document.getElementById('confirm-banner-view').style.display = 'none';
+    setStatus('view', 'جاري الحذف…');
+  }
+
+  var idToDelete = currentId;
+
+  apiFetch(REST_BASE + '?id=eq.' + encodeURIComponent(idToDelete), {
+    method:  'DELETE',
+    headers: BASE_HEADERS
+  })
+  .then(function () {
+    removeFromCache(idToDelete);
+    currentId = null;
+    goList();
+  })
+  .catch(function (err) {
+    setStatus(fromPage, 'خطأ في الحذف: ' + err.message);
+  });
+}
+
+/* ── Boot: load the list right away ── */
+
+/* Single delegated click listener for the entry list (set once, avoids re-attachment) */
+document.getElementById('entries-container').addEventListener('click', function (ev) {
+  var span = ev.target.closest('[data-entry-id]');
+  if (span) viewEntry(span.getAttribute('data-entry-id'));
+});
+
+loadEntries();
+</script>
+
+</body>
+</html>
